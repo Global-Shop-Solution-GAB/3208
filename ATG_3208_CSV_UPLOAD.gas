@@ -1,0 +1,201 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Coded by: JLH
+'Project Start Date: 6/16/2011
+'Quote 2151
+'Notes:
+'  GAB program will prompt for the location of the csv file to upload. It will parse through the csv (sample attached) and create the text file SALESHDR.txt and then call CORE upload program UPLSALES.
+'  Formats necessary can be found on page 138 of the GS File Conversion doc.
+
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.Control.CallSub(Load)
+
+
+Program.Sub.Main.End
+
+Program.Sub.Load.Start
+V.Local.sError.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sOrder.Declare(String)
+V.Local.iCount.Declare(Long)
+V.Local.iUB.Declare(Long)
+V.Local.sQuery.Declare(String)
+V.Local.sPart.Declare(String)
+V.Local.sCustomer.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.iLen.Declare(Long)
+V.Local.sHeader.Declare(String)
+V.Local.sLine.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sShip.Declare(String)
+V.Local.sLoc.Declare(String)
+V.local.bExists.Declare(Boolean)
+
+F.Intrinsic.Control.SetErrorHandler("Create_Error")
+
+F.Intrinsic.UI.ShowOpenFileDialog("",".csv","",V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists,=,True)
+	F.Intrinsic.file.File2String(V.Local.sFile,V.Local.sFile)
+	F.Intrinsic.String.Replace(V.local.sFile,V.Ambient.DblQuote,"",V.Local.sFile)
+	F.Intrinsic.String.Split(V.Local.sFile,V.Ambient.NewLine,V.Local.sFile)
+	F.Intrinsic.Math.Sub(V.Local.sFile.UBound,1,V.Local.iUB)
+
+	F.Intrinsic.Control.For(V.Local.iCount,0,V.Local.iUB,1)
+		F.Intrinsic.String.Split(V.Local.sFile(v.Local.iCount),",",V.Local.sLine)
+		F.Intrinsic.String.Len(V.Local.sLine(2),V.Local.iLen)
+		F.Intrinsic.Math.Sub(V.Local.iLen,3,V.Local.iLen)
+		F.Intrinsic.String.Mid(V.Local.sLine(2),4,V.Local.iLen,V.Local.sPart)
+		F.Intrinsic.String.Concat("Select * From INV_CROSS_REF where CUSTOMER_PART='",V.Local.sPart,"'",V.Local.sQuery)
+		F.ODBC.Connection!conx.OpenRecordsetRO("rst",V.Local.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conx!rst.EOF,=,False)
+			V.Local.sCustomer.Set(V.ODBC.conx!rst.FieldVal!CUSTOMER)
+			V.Local.sPart.Set(V.ODBC.conx!rst.FieldVal!PART)
+			V.Local.sLoc.Set(V.ODBC.conx!rst.FieldVal!LOCATION)
+			F.Intrinsic.String.Concat("Select * from OE_MULTI_SHIP where customer ='",V.Local.sCustomer,"' AND SHIP_STATE='",V.Local.sLine(6),"'",V.Local.sQuery)
+			F.ODBC.Connection!conx.OpenRecordsetRO("rstS",V.Local.sQuery)
+			F.Intrinsic.Control.If(V.ODBC.conx!rstS.EOF,=,False)
+				V.Local.sShip.Set(V.ODBC.conx!rstS.FieldVal!SHIP_SEQ)
+				F.Intrinsic.Control.If(V.Local.iCount,=,0)
+					'A
+					'Order #, Record Type
+					F.Intrinsic.String.RPad(" "," ",10,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sTemp,"A",V.Local.sHeader)
+					'Customer ID
+					F.Intrinsic.String.LPad(V.Local.sCustomer," ",6,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+					'Ship-to ID
+					F.Intrinsic.String.LPad(V.Local.sShip," ",6,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sheader)
+					'Order Date
+					F.Intrinsic.String.StripCharacters(V.Local.sLine(1),V.Local.sTemp)
+					F.Intrinsic.String.LPad(V.Local.sTemp," ",12,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+					F.Intrinsic.String.LPad("0"," ",12,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sheader)
+					'PO
+					F.Intrinsic.String.Replace(V.Local.sLine(0),"PO","",V.Local.sTemp)
+					F.Intrinsic.String.RPad(V.Local.sTemp," ",15,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+					F.Intrinsic.String.RPad(" "," ",452,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,"USDUSDUSD",V.local.sheader)
+					F.Intrinsic.String.RPad(" "," ",309,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Ambient.NewLine,V.Local.sheader)
+					'B
+					'Order #, Record Type
+					F.Intrinsic.String.RPad(" "," ",10,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.local.sHeader,V.Local.sTemp,"B",V.Local.sHeader)
+					'Customer ID
+					F.Intrinsic.String.LPad(V.Local.sCustomer," ",6,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+					'Ship-to ID
+					F.Intrinsic.String.LPad(V.Local.sShip," ",6,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sheader)
+					F.Intrinsic.String.RPad(" "," ",408,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Ambient.NewLine,V.Local.sHeader)
+					'C
+					'Order #, Record Type
+					F.Intrinsic.String.RPad(" "," ",10,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.local.sHeader,V.Local.sTemp,"C",V.Local.sHeader)
+					'Customer ID
+					F.Intrinsic.String.LPad(V.Local.sCustomer," ",6,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+					'Ship-to ID
+					F.Intrinsic.String.LPad(V.Local.sShip," ",6,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sheader)
+					F.Intrinsic.String.RPad(" "," ",807,V.Local.sTemp)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.Local.sTemp,V.Local.sHeader)
+					F.Intrinsic.String.Concat(V.Local.sHeader,V.ambient.NewLine,V.Local.sOrder,V.Local.sOrder)
+				F.Intrinsic.Control.EndIf
+
+				'L
+				'Order #, Record Type
+				F.Intrinsic.String.RPad(" "," ",10,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.local.sOrder,V.Local.sTemp,"L",V.Local.sOrder)
+				'Customer ID
+				F.Intrinsic.String.LPad(V.Local.sCustomer," ",6,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				'Ship-to ID
+				F.Intrinsic.String.LPad(V.Local.sShip," ",6,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				F.Intrinsic.String.LPad("S"," ",7,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				'Order Qty
+				F.Intrinsic.String.Concat(V.Local.sLine(3),".00",V.Local.sCustomer)
+				F.Intrinsic.String.LPad(V.Local.sCustomer," ",16,V.Local.sCustomer)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sCustomer,"",V.Local.sOrder)
+				F.Intrinsic.String.RPad(" "," ",16,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sCustomer,V.Local.sOrder)
+				F.Intrinsic.String.RPad(" "," ",18,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				'Part #
+				'F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sPart,V.local.sOrder)
+				F.Intrinsic.String.RPad(V.Local.sPart," ",20,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				'Price
+				F.Intrinsic.String.Replace(V.Local.sLine(4),"$","",V.local.sTemp)
+				F.Intrinsic.Math.Mult(V.Local.sLine(3),V.Local.sTemp,V.Local.sRet)
+				F.Intrinsic.String.Split(V.Local.sTemp,".",V.Local.sTemp)
+				F.Intrinsic.String.LPad(V.local.stemp(0)," ",10,V.Local.sPart)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sPart,".",V.Local.sOrder)
+				F.Intrinsic.String.RPad(V.Local.sTemp(1),"0",5,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				'Ship date
+				F.Intrinsic.String.StripCharacters(V.Local.sLine(5),V.local.sFile)
+				F.Intrinsic.String.LPad(V.Local.sFile," ",22,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.local.sOrder)
+				F.Intrinsic.String.RPad(" "," ",192,V.Local.sTemp)
+				'Location
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sLoc,V.Local.sOrder)
+				F.Intrinsic.String.RPad(" "," ",137,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				F.Intrinsic.String.RPad(V.Local.sFile," ",79,V.Local.sTemp)
+				'Order currency code
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,"USD",V.Local.sOrder)
+				'Extended amount
+				F.Intrinsic.String.Concat(V.Local.sRet,".00",V.Local.sRet)
+				F.Intrinsic.String.Split(V.Local.sRet,".",V.Local.sRet)
+				F.Intrinsic.String.LPad(V.Local.sRet(0)," ",13,V.Local.sPart)
+				F.Intrinsic.string.Concat(V.Local.sOrder,V.Local.sPart,".",V.Local.sOrder)
+				F.Intrinsic.String.RPad(V.Local.sRet(1),"0",2,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Local.sOrder)
+				F.Intrinsic.String.RPad(" "," ",247,V.Local.sTemp)
+				F.Intrinsic.String.Concat(V.Local.sOrder,V.Local.sTemp,V.Ambient.NewLine,V.Local.sOrder)
+			F.Intrinsic.Control.EndIf
+			F.ODBC.conx!rstS.Close
+		F.Intrinsic.Control.EndIf
+		F.ODBC.conx!rst.Close
+	F.Intrinsic.Control.Next(V.Local.iCount)
+
+	F.Intrinsic.Control.CallSub(Invokeupload,"sOrder",V.Local.sOrder)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Label("Create_Error")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Concat("Error Occured",V.Ambient.ErrorDescription,V.local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+F.Intrinsic.Control.EndIf
+
+Program.Sub.Load.End
+
+Program.Sub.InvokeUpload.Start
+V.Local.sfiledir.Declare(String)
+V.Local.sCommand.Declare(String)
+
+F.Intrinsic.File.ChangeDirectory(V.Caller.SP2Dir)
+
+F.Intrinsic.String.Concat(V.Caller.FilesDir,"\","SALESHDR.txt",V.Local.sfiledir)
+F.Intrinsic.File.String2File(V.Local.sfiledir,V.Args.sOrder)
+F.Global.General.CallWrapperSync(50,"UPLSALES/C")
+
+Program.Sub.InvokeUpload.End
+
+
